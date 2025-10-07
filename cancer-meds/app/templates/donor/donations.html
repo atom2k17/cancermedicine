@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+<h3>My Donation Bucket</h3>
+<p><a class="btn btn-success" href="{{ url_for('meds.add_donation') }}">+ Add Donation</a></p>
+<table class="table">
+  <thead><tr><th>Name</th><th>Qty</th><th>Expiry</th><th>Status</th><th>Actions</th></tr></thead>
+  <tbody>
+    {% for d in donations %}
+    <tr>
+      <td>{{ d.name }}</td>
+      <td>{{ d.quantity }}</td>
+      <td>{{ d.expiry_date }}</td>
+      <td>{{ d.status }}</td>
+      <td>
+        {% if d.status != 'matched' %}
+          <a class="btn btn-sm btn-outline-primary" href="{{ url_for('meds.edit_donation', mid=d.id) }}">Edit</a>
+          <form style="display:inline" method="post" action="{{ url_for('meds.delete_donation', mid=d.id) }}">
+            <button class="btn btn-sm btn-danger" type="submit">Delete</button>
+          </form>
+        {% else %}
+          <span class="text-muted">Locked</span>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

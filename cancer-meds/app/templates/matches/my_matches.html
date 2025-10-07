@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block content %}
+<h3>My Matches</h3>
+<table class="table">
+  <thead><tr><th>Donation</th><th>Request</th><th>Status</th><th>Actions</th></tr></thead>
+  <tbody>
+    {% for m in matches %}
+    <tr>
+      <td>{{ m.donor_medicine.name }} (Donor: {{ m.donor.name }})</td>
+      <td>{{ m.requester_medicine.name }} (Requester: {{ m.requester.name }})</td>
+      <td>{{ m.status }}</td>
+      <td>
+        {% if current_user.id == m.donor_id and m.status == 'pending' %}
+          <form method="post" action="{{ url_for('matches.donor_accept', match_id=m.id) }}">
+            <button class="btn btn-sm btn-success" type="submit">Accept</button>
+          </form>
+        {% elif current_user.id == m.requester_id and m.status == 'donor_accepted' %}
+          <form method="post" action="{{ url_for('matches.requester_confirm', match_id=m.id) }}">
+            <button class="btn btn-sm btn-primary" type="submit">Confirm</button>
+          </form>
+        {% else %}
+          <span class="text-muted">No action</span>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% if not matches %}
+  <p>No matches found.</p>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+  <h2>My Request Bucket</h2>
+  <table class="table">
+    <tr><th>Name</th><th>Qty</th><th>Expiry</th><th>Status</th></tr>
+    {% for med in medicines %}
+    <tr>
+      <td>{{ med.name }}</td>
+      <td>{{ med.quantity }}</td>
+      <td>{{ med.expiry_date }}</td>
+      <td>{{ med.status }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+{% endblock %}

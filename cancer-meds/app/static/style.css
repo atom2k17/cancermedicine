@@ -1,0 +1,61 @@
+body {
+	background: linear-gradient(135deg, #e0f7fa 0%, #e8f5e9 100%),
+		url('data:image/svg+xml;utf8,<svg width="100%25" height="100%25" viewBox="0 0 800 600" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M400 400 Q420 370 440 400 Q460 430 400 480 Q340 430 360 400 Q380 370 400 400 Z" stroke="%23009688" stroke-width="6" fill="none"/><path d="M370 390 Q350 370 330 390 Q310 410 370 470" stroke="%231976d2" stroke-width="4" fill="none"/><path d="M430 390 Q450 370 470 390 Q490 410 430 470" stroke="%2343a047" stroke-width="4" fill="none"/></svg>') no-repeat center center fixed;
+	background-size: cover;
+	min-height: 100vh;
+}
+
+.navbar {
+	background: linear-gradient(90deg, #009688 0%, #1976d2 100%);
+}
+
+.navbar-brand {
+	color: #fff !important;
+	font-weight: bold;
+	letter-spacing: 1px;
+}
+
+.nav-link {
+	color: #e0f7fa !important;
+}
+.nav-link.active, .nav-link:hover {
+	color: #ffd600 !important;
+}
+
+.btn-primary {
+	background-color: #1976d2;
+	border-color: #1976d2;
+}
+.btn-success {
+	background-color: #43a047;
+	border-color: #43a047;
+}
+.btn-danger {
+	background-color: #e53935;
+	border-color: #e53935;
+}
+.btn-secondary {
+	background-color: #009688;
+	border-color: #009688;
+}
+
+.table-striped > tbody > tr:nth-of-type(odd) {
+	background-color: #f1f8e9;
+}
+
+.alert-success {
+	background-color: #e8f5e9;
+	color: #388e3c;
+}
+.alert-info {
+	background-color: #e3f2fd;
+	color: #1976d2;
+}
+.alert-warning {
+	background-color: #fffde7;
+	color: #fbc02d;
+}
+.alert-danger {
+	background-color: #ffebee;
+	color: #d32f2f;
+}

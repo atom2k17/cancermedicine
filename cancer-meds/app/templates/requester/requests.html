@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+<h3>My Request Bucket</h3>
+<p><a class="btn btn-success" href="{{ url_for('meds.add_medicine') }}">+ Add Request</a></p>
+<table class="table">
+  <thead><tr><th>Name</th><th>Qty</th><th>Requested On</th><th>Status</th><th>Actions</th></tr></thead>
+  <tbody>
+    {% for r in requests %}
+    <tr>
+      <td>{{ r.name }}</td>
+      <td>{{ r.quantity }}</td>
+      <td>{{ r.created_at.strftime("%Y-%m-%d") }}</td>
+      <td>{{ r.status }}</td>
+      <td>
+        {% if r.status != 'matched' %}
+          <a class="btn btn-sm btn-outline-primary" href="{{ url_for('meds.edit_request', mid=r.id) }}">Edit</a>
+          <form style="display:inline" method="post" action="{{ url_for('meds.delete_request', mid=r.id) }}">
+            <button class="btn btn-sm btn-danger" type="submit">Delete</button>
+          </form>
+        {% else %}
+          <span class="text-muted">Locked</span>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

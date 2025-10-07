@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block content %}
+<h3>Find Donations</h3>
+<form class="mb-3" method="get">
+  <div class="input-group">
+    <input name="q" class="form-control" placeholder="Search medicine name" value="{{ query }}">
+    <button class="btn btn-primary" type="submit">Search</button>
+  </div>
+</form>
+
+{% if donations %}
+  <div class="list-group">
+  {% for d in donations %}
+    <div class="list-group-item">
+      <div class="d-flex w-100 justify-content-between">
+        <h5 class="mb-1">{{ d.name }}</h5>
+        <small>Qty: {{ d.quantity }} | Exp: {{ d.expiry_date }}</small>
+      </div>
+      <p class="mb-1">Donor: Hidden (will be revealed after match)</p>
+
+      {% if current_user.is_authenticated and current_user.role == 'requester' and requests %}
+        <form method="post" action="{{ url_for('matches.request_match', donor_mid=d.id, request_mid=0) }}" onsubmit="return setRequestId(this, 'req-{{ d.id }}')">
+          <div class="input-group mt-2">
+            <select class="form-select" name="request_mid" id="req-{{ d.id }}" required>
+              <option value="" disabled selected>Select your request</option>
+              {% for r in requests %}
+                <option value="{{ r.id }}">{{ r.name }} (Qty: {{ r.quantity }})</option>
+              {% endfor %}
+            </select>
+            <button class="btn btn-success" type="submit">Request Match</button>
+          </div>
+        </form>
+        <script>
+        function setRequestId(form, selectId) {
+          var sel = document.getElementById(selectId);
+          if (!sel.value) return false;
+          form.action = form.action.replace('/0', '/' + sel.value);
+          return true;
+        }
+        </script>
+      {% endif %}
+    </div>
+  {% endfor %}
+  </div>
+{% else %}
+  <p>No donations found.</p>
+{% endif %}
+{% endblock %}

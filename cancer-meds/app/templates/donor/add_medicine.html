@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+	<h3>Add Donation</h3>
+	<form method="POST">
+		{{ form.hidden_tag() }}
+		<div class="mb-3">
+			{{ form.name.label }}
+			{{ form.name(class="form-control") }}
+		</div>
+		<div class="mb-3">
+			{{ form.quantity.label }}
+			{{ form.quantity(class="form-control") }}
+		</div>
+		<div class="mb-3">
+			{{ form.expiry_date.label }}
+			{{ form.expiry_date(class="form-control", placeholder="YYYY-MM-DD") }}
+		</div>
+		{{ form.submit(class="btn btn-primary") }}
+		<a href="{{ url_for('meds.my_donations') }}" class="btn btn-secondary">Cancel</a>
+	</form>
+</div>
+{% endblock %}
