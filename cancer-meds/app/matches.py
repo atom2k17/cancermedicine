@@ -1,8 +1,10 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, current_app as app
 from flask_login import login_required, current_user
 from .models import Medicine, Match, User
+from datetime import datetime
 from . import db, mail
 from flask_mail import Message
+import math
 
 matches_bp = Blueprint("matches", __name__, url_prefix="/matches", template_folder="templates")
 
@@ -25,7 +27,52 @@ def my_matches():
         matches = Match.query.filter_by(donor_id=current_user.id).order_by(Match.created_at.desc()).all()
     elif current_user.role == "requester":
         matches = Match.query.filter_by(requester_id=current_user.id).order_by(Match.created_at.desc()).all()
+    # compute distance (km) for each match if coordinates are available
+    def haversine_km(lat1, lon1, lat2, lon2):
+        if None in (lat1, lon1, lat2, lon2):
+            return None
+        R = 6371.0
+        phi1, phi2 = math.radians(lat1), math.radians(lat2)
+        dphi = math.radians(lat2 - lat1)
+        dlambda = math.radians(lon2 - lon1)
+        a = math.sin(dphi/2)**2 + math.cos(phi1)*math.cos(phi2)*math.sin(dlambda/2)**2
+        return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
+
+    for m in matches:
+        try:
+            # use user coordinates (donor/requester) rather than per-medicine coordinates
+            dlat = getattr(m.donor, 'latitude', None)
+            dlon = getattr(m.donor, 'longitude', None)
+            rlat = getattr(m.requester, 'latitude', None)
+            rlon = getattr(m.requester, 'longitude', None)
+            dist = haversine_km(dlat, dlon, rlat, rlon)
+            m.distance_km = round(dist, 1) if dist is not None else None
+        except Exception:
+            m.distance_km = None
+
     return render_template("matches/my_matches.html", matches=matches)
+
+
+@matches_bp.route('/pending_verifications')
+@login_required
+def pending_verifications():
+    if current_user.role != 'doctor':
+        flash('Unauthorized', 'danger'); return redirect(url_for('home'))
+    # show matches that are awaiting verification
+    pending = Match.query.filter_by(status='awaiting_verification').order_by(Match.created_at.desc()).all()
+
+    # also show matches/images this doctor has already approved
+    from .models import Image
+    approved_imgs = Image.query.filter_by(approved=True, approved_by=current_user.id).all()
+    approved_matches_set = set()
+    for img in approved_imgs:
+        # find matches where this image's medicine is either donor or requester medicine
+        m = Match.query.filter((Match.donor_medicine_id == img.medicine_id) | (Match.requester_medicine_id == img.medicine_id)).first()
+        if m:
+            approved_matches_set.add(m)
+    approved = sorted(list(approved_matches_set), key=lambda x: x.created_at, reverse=True)
+
+    return render_template('matches/pending_verifications.html', pending=pending, approved=approved)
 
 @matches_bp.route("/find")
 @login_required
@@ -103,16 +150,48 @@ def requester_confirm(match_id):
         flash("Unauthorized", "danger"); return redirect(url_for("home"))
     if match.status != "donor_accepted":
         flash("Match not ready", "warning"); return redirect(url_for("meds.my_requests"))
-    match.status = "completed"
-    # lock items
-    dm = match.donor_medicine; rm = match.requester_medicine
-    dm.status = "matched"; rm.status = "matched"
+    # move to awaiting verification by doctors
+    match.status = 'awaiting_verification'
     db.session.commit()
-    # notify both with contact details
-    donor = User.query.get(match.donor_id)
-    requester = User.query.get(match.requester_id)
-    body = f"Match completed. Donor: {donor.name}, Email: {donor.email}, Phone: {donor.phone}\nRequester: {requester.name}, Email: {requester.email}, Phone: {requester.phone}"
-    send_notification(donor.email, "Match completed & contact revealed", body)
-    send_notification(requester.email, "Match completed & contact revealed", body)
-    flash("Match completed. Contacts revealed via email.", "success")
-    return redirect(url_for("meds.my_requests"))
+    # notify doctors to review this match
+    doctors = User.query.filter_by(role='doctor').all()
+    for d in doctors:
+        try:
+            send_notification(d.email, 'Match awaiting verification', f"A match (id={match.id}) requires verification. Review: {url_for('matches.verify', match_id=match.id, _external=True)}")
+        except Exception:
+            pass
+    flash('Request submitted for doctor verification. A doctor will review and approve shortly.', 'info')
+    return redirect(url_for('meds.my_requests'))
+
+
+@matches_bp.route('/verify/<int:match_id>', methods=['GET','POST'])
+@login_required
+def verify(match_id):
+    if current_user.role != 'doctor':
+        flash('Unauthorized', 'danger'); return redirect(url_for('home'))
+    match = Match.query.get_or_404(match_id)
+    if request.method == 'POST':
+        # approve images for both medicines
+        from .models import Image
+        imgs = Image.query.filter(Image.medicine_id.in_([match.donor_medicine_id, match.requester_medicine_id])).all()
+        for img in imgs:
+            img.approved = True
+            img.approved_by = current_user.id
+            img.approved_at = datetime.utcnow()
+            db.session.add(img)
+        # finalize match and reveal contacts
+        match.status = 'completed'
+        dm = match.donor_medicine; rm = match.requester_medicine
+        dm.status = 'matched'; rm.status = 'matched'
+        db.session.commit()
+        donor = User.query.get(match.donor_id)
+        requester = User.query.get(match.requester_id)
+        body = f"Match completed after doctor verification. Donor: {donor.name}, Email: {donor.email}, Phone: {donor.phone}\nRequester: {requester.name}, Email: {requester.email}, Phone: {requester.phone}"
+        send_notification(donor.email, 'Match verified & contact revealed', body)
+        send_notification(requester.email, 'Match verified & contact revealed', body)
+        flash('Match verified and contacts revealed. Emails sent.', 'success')
+        return redirect(url_for('matches.pending_verifications'))
+    # determine whether the current doctor can approve this match
+    # only allow approving when match is awaiting_verification
+    can_approve = (match.status == 'awaiting_verification')
+    return render_template('matches/verify.html', match=match, can_approve=can_approve)

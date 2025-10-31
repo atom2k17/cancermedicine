@@ -59,3 +59,22 @@ body {
 	background-color: #ffebee;
 	color: #d32f2f;
 }
+
+/* Process flow on homepage */
+.process-flow {
+	margin-top: 2.5rem;
+}
+.flow-step {
+	background: rgba(255,255,255,0.9);
+	border-radius: 12px;
+	padding: 1.2rem;
+	box-shadow: 0 6px 18px rgba(0,0,0,0.06);
+	min-height: 150px;
+}
+.flow-step .icon {
+	width:56px; height:56px; display:inline-block; border-radius:50%; background:#1976d2; color:#fff; line-height:56px; text-align:center; font-size:24px; margin-bottom:0.5rem;
+}
+.flow-arrow { font-size:28px; color:#1976d2; margin:0 0.5rem; }
+@media (max-width:767px) {
+	.flow-arrow { display:none; }
+}

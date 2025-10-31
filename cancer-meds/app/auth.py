@@ -16,7 +16,7 @@ class RegisterForm(FlaskForm):
     email = StringField("Email", validators=[DataRequired(), Email()])
     phone = StringField("Phone")
     password = PasswordField("Password", validators=[DataRequired(), Length(min=6)])
-    role = SelectField("Role", choices=[("donor","Donor"),("requester","Requester")])
+    role = SelectField("Role", choices=[("donor","Donor"),("requester","Requester"),("doctor","Doctor")])
     submit = SubmitField("Register")
 
 class LoginForm(FlaskForm):
@@ -27,6 +27,10 @@ class LoginForm(FlaskForm):
 @auth_bp.route("/register", methods=["GET","POST"])
 def register():
     form = RegisterForm()
+    # allow preselecting role via query param e.g. /auth/register?role=donor
+    pre_role = request.args.get('role')
+    if pre_role and pre_role in dict(form.role.choices):
+        form.role.data = pre_role
     if form.validate_on_submit():
         if User.query.filter_by(email=form.email.data).first():
             flash("Email already registered", "danger")

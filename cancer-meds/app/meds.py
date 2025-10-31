@@ -1,11 +1,13 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request
+from flask import Blueprint, render_template, redirect, url_for, flash, request, current_app as app
 from flask_login import login_required, current_user
 from .models import Medicine, User, Match
 from . import db
 from datetime import datetime
 from . import mail
 from flask_mail import Message
-from flask import current_app as app
+import os
+from werkzeug.utils import secure_filename
+from uuid import uuid4
 
 meds_bp = Blueprint("meds", __name__, url_prefix="/meds", template_folder="templates")
 
@@ -13,11 +15,49 @@ from flask_wtf import FlaskForm
 from wtforms import StringField, IntegerField, DateField, SubmitField, HiddenField
 from wtforms.validators import DataRequired, NumberRange
 
+
+class ProfileForm(FlaskForm):
+    name = StringField('Full name', validators=[DataRequired()])
+    phone = StringField('Phone')
+    latitude = HiddenField('Latitude')
+    longitude = HiddenField('Longitude')
+    submit = SubmitField('Save')
+
 class MedicineForm(FlaskForm):
     name = StringField("Medicine Name", validators=[DataRequired()])
     quantity = IntegerField("Quantity", validators=[DataRequired(), NumberRange(min=1)])
     expiry_date = DateField("Expiry Date (optional)", format="%Y-%m-%d", validators=[])
+    # location field is handled via request.form (optional)
     submit = SubmitField("Save")
+
+ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "pdf"}
+
+def allowed_file(filename):
+    if not filename:
+        return False
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def save_uploads(files, medicine_id, uploader_id, image_type):
+    uploads = []
+    upload_dir = os.path.join(app.static_folder, 'uploads')
+    os.makedirs(upload_dir, exist_ok=True)
+    for f in files:
+        if f and allowed_file(f.filename):
+            filename = secure_filename(f.filename)
+            unique = f"{uuid4().hex}_{filename}"
+            dest = os.path.join(upload_dir, unique)
+            f.save(dest)
+            # store path relative to static folder
+            relpath = f"uploads/{unique}"
+            img = None
+            try:
+                from .models import Image
+                img = Image(filename=relpath, medicine_id=medicine_id, uploader_id=uploader_id, image_type=image_type)
+                db.session.add(img)
+                uploads.append(img)
+            except Exception as e:
+                print("Error saving image record:", e)
+    return uploads
 
 def send_notification(to, subject, body):
     # Use Flask-Mail if configured, otherwise fallback to print
@@ -44,11 +84,18 @@ def add_donation():
         return redirect(url_for("home"))
     form = MedicineForm()
     if form.validate_on_submit():
+        location = request.form.get('location')
+        # store donation; user coordinates are stored on the User model instead of per-medicine
         m = Medicine(user_id=current_user.id, name=form.name.data,
                      quantity=form.quantity.data, expiry_date=form.expiry_date.data,
-                     type="donation", status="available")
+                     type="donation", status="available", location=location)
         db.session.add(m)
         db.session.commit()
+        # handle uploaded images
+        files = request.files.getlist('images')
+        if files:
+            save_uploads(files, m.id, current_user.id, 'donation_photo')
+            db.session.commit()
         flash("Donation added", "success")
         return redirect(url_for("meds.my_donations"))
     return render_template("donor/add_medicine.html", form=form)
@@ -98,11 +145,18 @@ def add_medicine():
         return redirect(url_for("home"))
     form = MedicineForm()
     if form.validate_on_submit():
+        location = request.form.get('location')
+        # store request; user coordinates are stored on the User model instead of per-medicine
         m = Medicine(user_id=current_user.id, name=form.name.data,
                      quantity=form.quantity.data, expiry_date=form.expiry_date.data,
-                     type="request", status="available")
+                     type="request", status="available", location=location)
         db.session.add(m)
         db.session.commit()
+        # handle prescription uploads
+        files = request.files.getlist('prescriptions')
+        if files:
+            save_uploads(files, m.id, current_user.id, 'prescription')
+            db.session.commit()
         flash("Request added", "success")
         return redirect(url_for("meds.my_requests"))
     return render_template("requester/add_request.html", form=form)
@@ -136,3 +190,38 @@ def delete_request(mid):
     db.session.delete(m); db.session.commit()
     flash("Deleted", "info")
     return redirect(url_for("meds.my_requests"))
+
+
+# Profile page to set user contact info and coordinates
+@meds_bp.route('/profile', methods=['GET', 'POST'])
+@login_required
+def profile():
+    form = ProfileForm()
+    if form.validate_on_submit():
+        # update basic info
+        current_user.name = form.name.data
+        current_user.phone = form.phone.data
+        # coords (optional)
+        lat = form.latitude.data
+        lon = form.longitude.data
+        try:
+            current_user.latitude = float(lat) if lat not in (None, '', 'null') else None
+        except Exception:
+            current_user.latitude = None
+        try:
+            current_user.longitude = float(lon) if lon not in (None, '', 'null') else None
+        except Exception:
+            current_user.longitude = None
+        db.session.add(current_user)
+        db.session.commit()
+        flash('Profile updated', 'success')
+        return redirect(url_for('meds.profile'))
+
+    # prefill the form with current values
+    if request.method == 'GET':
+        form.name.data = current_user.name
+        form.phone.data = current_user.phone
+        form.latitude.data = getattr(current_user, 'latitude', '') or ''
+        form.longitude.data = getattr(current_user, 'longitude', '') or ''
+
+    return render_template('profile.html', form=form)

@@ -16,8 +16,108 @@
           </form>
         {% elif current_user.id == m.requester_id and m.status == 'donor_accepted' %}
           <form method="post" action="{{ url_for('matches.requester_confirm', match_id=m.id) }}">
-            <button class="btn btn-sm btn-primary" type="submit">Confirm</button>
+            <button class="btn btn-sm btn-primary" type="submit">Confirm (send for verification)</button>
           </form>
+        {% elif m.status == 'awaiting_verification' %}
+          {% if current_user.role == 'doctor' %}
+            <a class="btn btn-sm btn-primary" href="{{ url_for('matches.verify', match_id=m.id) }}">Review</a>
+          {% else %}
+            <button class="btn btn-sm btn-secondary" disabled>Awaiting doctor verification</button>
+          {% endif %}
+        {% elif m.status == 'completed' %}
+          <span class="text-success">Completed</span>
+          <!-- show contact button to reveal map and contact details -->
+          <button class="btn btn-sm btn-outline-primary ms-2" data-bs-toggle="modal" data-bs-target="#contactModal-{{ m.id }}">Contact</button>
+          <!-- Contact modal -->
+          <div class="modal fade" id="contactModal-{{ m.id }}" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-lg modal-dialog-centered">
+              <div class="modal-content">
+                <div class="modal-header">
+                  <h5 class="modal-title">Contact & Location for match #{{ m.id }}</h5>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                  <div class="row">
+                    <div class="col-md-6">
+                      <h6>Donor</h6>
+                      <p><strong>{{ m.donor.name }}</strong><br>
+                      Email: {{ m.donor.email }}<br>
+                      Phone: {{ m.donor.phone }}</p>
+                      <h6>Requester</h6>
+                      <p><strong>{{ m.requester.name }}</strong><br>
+                      Email: {{ m.requester.email }}<br>
+                      Phone: {{ m.requester.phone }}</p>
+                      {% if m.distance_km %}
+                        <p class="mt-2"><strong>Distance:</strong> {{ m.distance_km }} km</p>
+                      {% else %}
+                        <p class="mt-2 text-muted">Distance not available</p>
+                      {% endif %}
+                    </div>
+                    <div class="col-md-6">
+                      <div id="map-{{ m.id }}" style="height:300px; width:100%;"></div>
+                    </div>
+                  </div>
+                </div>
+                <div class="modal-footer">
+                  <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <script>
+            (function(){
+              function waitForLeaflet(cb, tries){
+                tries = tries || 0;
+                if (window.L) return cb();
+                if (tries > 50) { console.error('Leaflet did not load'); return; }
+                setTimeout(function(){ waitForLeaflet(cb, tries+1); }, 100);
+              }
+
+              var modalEl = document.getElementById('contactModal-{{ m.id }}');
+              modalEl.addEventListener('shown.bs.modal', function(event){
+                // initialize map only once
+                var mapId = 'map-{{ m.id }}';
+                if (!document.getElementById(mapId).dataset.initialized) {
+                  waitForLeaflet(function(){
+                    {% if m.donor.latitude is not none and m.donor.longitude is not none %}
+                      var donorLat = {{ m.donor.latitude }};
+                      var donorLng = {{ m.donor.longitude }};
+                    {% else %}
+                      var donorLat = null;
+                      var donorLng = null;
+                    {% endif %}
+                    {% if m.requester.latitude is not none and m.requester.longitude is not none %}
+                      var reqLat = {{ m.requester.latitude }};
+                      var reqLng = {{ m.requester.longitude }};
+                    {% else %}
+                      var reqLat = null;
+                      var reqLng = null;
+                    {% endif %}
+                    var map = L.map(mapId).setView([0,0],2);
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18, attribution:'&copy; OpenStreetMap contributors'}).addTo(map);
+                    var points = [];
+                    if (donorLat && donorLng) {
+                      var dm = L.marker([donorLat, donorLng]).addTo(map).bindPopup('Donor: {{ m.donor.name }}');
+                      points.push([donorLat, donorLng]);
+                    }
+                    if (reqLat && reqLng) {
+                      var rm = L.marker([reqLat, reqLng]).addTo(map).bindPopup('Requester: {{ m.requester.name }}');
+                      points.push([reqLat, reqLng]);
+                    }
+                    if (points.length) {
+                      map.fitBounds(points);
+                      if (points.length == 2) {
+                        var poly = L.polyline(points, {color: 'red', weight:6}).addTo(map);
+                      }
+                    }
+                    // ensure tiles render correctly inside modal
+                    setTimeout(function(){ map.invalidateSize(); }, 200);
+                    document.getElementById(mapId).dataset.initialized = '1';
+                  });
+                }
+              });
+            })();
+          </script>
         {% else %}
           <span class="text-muted">No action</span>
         {% endif %}
