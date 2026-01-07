@@ -31,7 +31,9 @@
               <li class="nav-item"><a class="nav-link" href="{{ url_for('matches.pending_verifications') }}">Pending Verifications {% if pending_verifications_count and pending_verifications_count > 0 %}<span class="badge bg-danger ms-1">{{ pending_verifications_count }}</span>{% endif %}</a></li>
             {% endif %}
             <li class="nav-item"><a class="nav-link" href="{{ url_for('matches.find_matches') }}">Find Donations</a></li>
+            {% if current_user.role != "doctor" %}
             <li class="nav-item"><a class="nav-link" href="{{ url_for('matches.my_matches') }}">My Matches</a></li>
+            {% endif %}
           {% endif %}
         </ul>
 

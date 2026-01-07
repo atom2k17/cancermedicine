@@ -11,9 +11,14 @@
       <td>{{ m.status }}</td>
       <td>
         {% if current_user.id == m.donor_id and m.status == 'pending' %}
-          <form method="post" action="{{ url_for('matches.donor_accept', match_id=m.id) }}">
-            <button class="btn btn-sm btn-success" type="submit">Accept</button>
-          </form>
+          <div style="display: flex; gap: 0.5rem;">
+            <form method="post" action="{{ url_for('matches.donor_accept', match_id=m.id) }}" style="display: inline;">
+              <button class="btn btn-sm btn-success" type="submit">Accept</button>
+            </form>
+            <form method="post" action="{{ url_for('matches.donor_reject', match_id=m.id) }}" style="display: inline;" onsubmit="return confirm('Are you sure you want to reject this request?');">
+              <button class="btn btn-sm btn-danger" type="submit">Reject</button>
+            </form>
+          </div>
         {% elif current_user.id == m.requester_id and m.status == 'donor_accepted' %}
           <form method="post" action="{{ url_for('matches.requester_confirm', match_id=m.id) }}">
             <button class="btn btn-sm btn-primary" type="submit">Confirm (send for verification)</button>

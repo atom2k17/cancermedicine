@@ -1,36 +1,90 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="container mt-4">
+<div class="form-container">
 	<h3>Add Request</h3>
-	<form method="POST" enctype="multipart/form-data">
+	<form method="POST" enctype="multipart/form-data" onsubmit="return validateForm()">
 		{{ form.hidden_tag() }}
 		<div class="mb-3">
 			{{ form.name.label }}
-			{{ form.name(class="form-control") }}
+			{{ form.name(class="form-control", required=True) }}
 		</div>
 		<div class="mb-3">
 			{{ form.quantity.label }}
-			{{ form.quantity(class="form-control") }}
+			{{ form.quantity(class="form-control", required=True, min=1) }}
 		</div>
 		<div class="mb-3">
 			{{ form.expiry_date.label }}
-			{{ form.expiry_date(class="form-control", placeholder="YYYY-MM-DD") }}
+			{{ form.expiry_date(class="form-control", required=True, id="expiry_date") }}
 		</div>
-			<div class="mb-3">
-				<label for="location">Location (optional)</label>
-				<input type="text" name="location" id="location" class="form-control" placeholder="City, address or coordinates">
+		<div class="mb-3">
+			<label for="location">Location</label>
+			<input type="text" name="location" id="location" class="form-control" placeholder="City, address or coordinates" required>
+		</div>
+		<div class="mb-3">
+			<small class="form-text text-muted">Note: we use your account location to show matches on the map. You can edit your profile location later.</small>
+		</div>
+		<div class="mb-3">
+			<label for="prescriptions">Upload prescription images (image or PDF - max 3 files)</label>
+			<div style="background: #fff5f0; border-left: 4px solid #f5576c; padding: 1.2rem; border-radius: 6px; margin-bottom: 1rem;">
+				<p style="margin: 0 0 0.8rem 0; font-weight: 600; color: #2c3e50;">📋 What to include in your prescription:</p>
+				<ul style="margin: 0; padding-left: 1.5rem; color: #555; line-height: 1.6;">
+					<li><strong>Doctor's name</strong> - clearly visible on prescription</li>
+					<li><strong>Medical registration number</strong> - license/registration details</li>
+					<li><strong>Diagnosis</strong> - clear statement of medical condition</li>
+					<li><strong>Medicine dosage</strong> - strength and quantity prescribed</li>
+					<li><strong>Treatment period</strong> - duration of medication</li>
+				</ul>
+				<p style="margin: 0.8rem 0 0 0; color: #666; font-style: italic; font-size: 0.95rem;">💡 Tip: Upload prescription from multiple doctors if on multiple medications. Multiple images help with verification (max 3 files)</p>
 			</div>
-
-			<div class="mb-3">
-				<small class="form-text text-muted">Note: we use your account location to show matches on the map. You can edit your profile location later.</small>
-			</div>
-			<div class="mb-3">
-				<label for="prescriptions">Upload prescription (image or PDF)</label>
-				<input type="file" name="prescriptions" id="prescriptions" class="form-control" accept="image/*,.pdf" multiple>
-			</div>
-		{{ form.submit(class="btn btn-primary") }}
-		<a href="{{ url_for('meds.my_requests') }}" class="btn btn-secondary">Cancel</a>
+			<input type="file" name="prescriptions" id="prescriptions" class="form-control" accept="image/*,.pdf" multiple required onchange="validateFileCount(this)">
+			<small id="file-count" style="color: #666; margin-top: 0.5rem;"></small>
+		</div>
+		<div style="display: flex; gap: 0.8rem;">
+			<button type="submit" class="btn btn-success" style="color: white; font-weight: 600; padding: 0.6rem 1.5rem;">Save</button>
+			<a href="{{ url_for('meds.my_requests') }}" class="btn btn-outline-secondary" style="width: auto; flex: 1; font-weight: 600; color: #555; border-color: #999;">Cancel</a>
+		</div>
 	</form>
 </div>
-<!-- No per-medicine map picker: user location is used for map display -->
+
+<script>
+function validateForm() {
+	var expiryInput = document.getElementById('expiry_date');
+	var today = new Date();
+	today.setHours(0, 0, 0, 0);
+	
+	if (expiryInput.value) {
+		var expiryDate = new Date(expiryInput.value);
+		if (expiryDate < today) {
+			alert('Expiry date cannot be in the past');
+			return false;
+		}
+	}
+	return true;
+}
+
+function validateFileCount(input) {
+	var files = input.files;
+	var countElement = document.getElementById('file-count');
+	
+	if (files.length > 3) {
+		alert('Maximum 3 files allowed');
+		input.value = '';
+		countElement.textContent = '';
+		return false;
+	}
+	
+	if (files.length > 0) {
+		countElement.textContent = `${files.length} file${files.length > 1 ? 's' : ''} selected`;
+	} else {
+		countElement.textContent = '';
+	}
+	return true;
+}
+
+document.addEventListener('DOMContentLoaded', function(){
+	var expiryInput = document.getElementById('expiry_date');
+	var today = new Date().toISOString().split('T')[0];
+	expiryInput.min = today;
+});
+</script>
 {% endblock %}

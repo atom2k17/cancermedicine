@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request, current_app as app
+from flask import Blueprint, render_template, redirect, url_for, flash, request, current_app as app, make_response
 from flask_login import login_required, current_user
 from .models import Medicine, User, Match
 from . import db
@@ -15,6 +15,17 @@ from flask_wtf import FlaskForm
 from wtforms import StringField, IntegerField, DateField, SubmitField, HiddenField
 from wtforms.validators import DataRequired, NumberRange
 
+def no_cache(f):
+    """Decorator to prevent caching of responses"""
+    def decorated_function(*args, **kwargs):
+        response = make_response(f(*args, **kwargs))
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+        return response
+    decorated_function.__name__ = f.__name__
+    return decorated_function
+
 
 class ProfileForm(FlaskForm):
     name = StringField('Full name', validators=[DataRequired()])
@@ -26,8 +37,8 @@ class ProfileForm(FlaskForm):
 class MedicineForm(FlaskForm):
     name = StringField("Medicine Name", validators=[DataRequired()])
     quantity = IntegerField("Quantity", validators=[DataRequired(), NumberRange(min=1)])
-    expiry_date = DateField("Expiry Date (optional)", format="%Y-%m-%d", validators=[])
-    # location field is handled via request.form (optional)
+    expiry_date = DateField("Expiry Date", format="%Y-%m-%d", validators=[DataRequired()])
+    # location field is handled via request.form (mandatory)
     submit = SubmitField("Save")
 
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "pdf"}
@@ -84,7 +95,11 @@ def add_donation():
         return redirect(url_for("home"))
     form = MedicineForm()
     if form.validate_on_submit():
-        location = request.form.get('location')
+        location = request.form.get('location', '').strip()
+        # validate location is not empty
+        if not location:
+            flash("Location is required", "danger")
+            return render_template("donor/add_medicine.html", form=form)
         # store donation; user coordinates are stored on the User model instead of per-medicine
         m = Medicine(user_id=current_user.id, name=form.name.data,
                      quantity=form.quantity.data, expiry_date=form.expiry_date.data,
@@ -102,20 +117,63 @@ def add_donation():
 
 @meds_bp.route("/edit_donation/<int:mid>", methods=["GET","POST"])
 @login_required
+@no_cache
 def edit_donation(mid):
     m = Medicine.query.get_or_404(mid)
     if m.user_id != current_user.id:
         flash("Unauthorized", "danger"); return redirect(url_for("home"))
     if m.status == "matched":
         flash("Cannot edit matched item", "warning"); return redirect(url_for("meds.my_donations"))
-    form = MedicineForm(obj=m)
-    if form.validate_on_submit():
-        m.name = form.name.data
-        m.quantity = form.quantity.data
-        m.expiry_date = form.expiry_date.data
+    
+    form = MedicineForm()
+    
+    if request.method == "POST":
+        print(f"DEBUG: POST request received for edit_donation {mid}")
+        print(f"DEBUG: Form data - name: {request.form.get('name')}, quantity: {request.form.get('quantity')}, expiry: {request.form.get('expiry_date')}")
+        
+        # Update medicine data
+        m.name = request.form.get('name', m.name).strip()
+        m.quantity = request.form.get('quantity', m.quantity)
+        expiry_str = request.form.get('expiry_date')
+        if expiry_str:
+            try:
+                m.expiry_date = datetime.strptime(expiry_str, '%Y-%m-%d').date()
+            except:
+                pass
+        
+        # Handle image deletions (marked with checkboxes)
+        delete_image_ids = request.form.getlist('delete_images')
+        if delete_image_ids:
+            from .models import Image
+            for img_id in delete_image_ids:
+                img = Image.query.get(img_id)
+                if img and img.medicine_id == mid:
+                    # Delete file from disk
+                    try:
+                        filepath = os.path.join(app.static_folder, img.filename)
+                        if os.path.exists(filepath):
+                            os.remove(filepath)
+                    except Exception as e:
+                        print(f"Error deleting file: {e}")
+                    # Delete database record
+                    db.session.delete(img)
+            print(f"DEBUG: Deleted {len(delete_image_ids)} images")
+        
+        # Handle new image uploads
+        files = request.files.getlist('images')
+        files = [f for f in files if f and f.filename]
+        if files:
+            print(f"DEBUG: Uploading {len(files)} images")
+            save_uploads(files, mid, current_user.id, 'medicine')
+        else:
+            print("DEBUG: No images selected")
+        
         db.session.commit()
-        flash("Updated", "success")
-        return redirect(url_for("meds.my_donations"))
+        flash("Updated successfully", "success")
+        response = make_response(redirect(url_for("meds.edit_donation", mid=mid)))
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        return response
+    
     return render_template("donor/edit_medicine.html", form=form, med=m)
 
 @meds_bp.route("/delete_donation/<int:mid>", methods=["POST"])
@@ -126,7 +184,11 @@ def delete_donation(mid):
         flash("Unauthorized", "danger"); return redirect(url_for("home"))
     if m.status == "matched":
         flash("Cannot delete matched item", "warning"); return redirect(url_for("meds.my_donations"))
-    db.session.delete(m); db.session.commit()
+    # Delete associated images first
+    from .models import Image
+    Image.query.filter_by(medicine_id=mid).delete()
+    db.session.delete(m)
+    db.session.commit()
     flash("Deleted", "info")
     return redirect(url_for("meds.my_donations"))
 
@@ -145,7 +207,16 @@ def add_medicine():
         return redirect(url_for("home"))
     form = MedicineForm()
     if form.validate_on_submit():
-        location = request.form.get('location')
+        location = request.form.get('location', '').strip()
+        # validate location is not empty
+        if not location:
+            flash("Location is required", "danger")
+            return render_template("requester/add_request.html", form=form)
+        # validate prescriptions are uploaded
+        files = request.files.getlist('prescriptions')
+        if not files or all(f.filename == '' for f in files):
+            flash("At least one prescription file is required", "danger")
+            return render_template("requester/add_request.html", form=form)
         # store request; user coordinates are stored on the User model instead of per-medicine
         m = Medicine(user_id=current_user.id, name=form.name.data,
                      quantity=form.quantity.data, expiry_date=form.expiry_date.data,
@@ -153,7 +224,6 @@ def add_medicine():
         db.session.add(m)
         db.session.commit()
         # handle prescription uploads
-        files = request.files.getlist('prescriptions')
         if files:
             save_uploads(files, m.id, current_user.id, 'prescription')
             db.session.commit()
@@ -163,21 +233,64 @@ def add_medicine():
 
 @meds_bp.route("/edit_request/<int:mid>", methods=["GET","POST"])
 @login_required
+@no_cache
 def edit_request(mid):
     m = Medicine.query.get_or_404(mid)
     if m.user_id != current_user.id:
         flash("Unauthorized", "danger"); return redirect(url_for("home"))
     if m.status == "matched":
         flash("Cannot edit matched item", "warning"); return redirect(url_for("meds.my_requests"))
-    form = MedicineForm(obj=m)
-    if form.validate_on_submit():
-        m.name = form.name.data
-        m.quantity = form.quantity.data
-        m.expiry_date = form.expiry_date.data
+    
+    form = MedicineForm()
+    
+    if request.method == "POST":
+        print(f"DEBUG: POST request received for edit_request {mid}")
+        print(f"DEBUG: Form data - name: {request.form.get('name')}, quantity: {request.form.get('quantity')}, expiry: {request.form.get('expiry_date')}")
+        
+        # Update medicine data
+        m.name = request.form.get('name', m.name).strip()
+        m.quantity = request.form.get('quantity', m.quantity)
+        expiry_str = request.form.get('expiry_date')
+        if expiry_str:
+            try:
+                m.expiry_date = datetime.strptime(expiry_str, '%Y-%m-%d').date()
+            except:
+                pass
+        
+        # Handle prescription deletions (marked with checkboxes)
+        delete_image_ids = request.form.getlist('delete_images')
+        if delete_image_ids:
+            from .models import Image
+            for img_id in delete_image_ids:
+                img = Image.query.get(img_id)
+                if img and img.medicine_id == mid:
+                    # Delete file from disk
+                    try:
+                        filepath = os.path.join(app.static_folder, img.filename)
+                        if os.path.exists(filepath):
+                            os.remove(filepath)
+                    except Exception as e:
+                        print(f"Error deleting file: {e}")
+                    # Delete database record
+                    db.session.delete(img)
+            print(f"DEBUG: Deleted {len(delete_image_ids)} prescriptions")
+        
+        # Handle new prescription uploads
+        files = request.files.getlist('prescriptions')
+        files = [f for f in files if f and f.filename]
+        if files:
+            print(f"DEBUG: Uploading {len(files)} prescriptions")
+            save_uploads(files, mid, current_user.id, 'prescription')
+        else:
+            print("DEBUG: No prescriptions selected")
+        
         db.session.commit()
-        flash("Updated", "success")
-        return redirect(url_for("meds.my_requests"))
-    return render_template("requester/edit_request.html", form=form, med=m)
+        flash("Updated successfully", "success")
+        response = make_response(redirect(url_for("meds.edit_request", mid=mid)))
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        return response
+    
+    return render_template("requester/edit_request.html", form=form, req=m)
 
 @meds_bp.route("/delete_request/<int:mid>", methods=["POST"])
 @login_required
@@ -187,9 +300,50 @@ def delete_request(mid):
         flash("Unauthorized", "danger"); return redirect(url_for("home"))
     if m.status == "matched":
         flash("Cannot delete matched item", "warning"); return redirect(url_for("meds.my_requests"))
-    db.session.delete(m); db.session.commit()
+    # Delete associated images first
+    from .models import Image
+    Image.query.filter_by(medicine_id=mid).delete()
+    db.session.delete(m)
+    db.session.commit()
     flash("Deleted", "info")
     return redirect(url_for("meds.my_requests"))
+
+
+# Delete individual image
+@meds_bp.route("/delete_image/<int:image_id>", methods=["POST"])
+@login_required
+@no_cache
+def delete_image(image_id):
+    from .models import Image
+    img = Image.query.get_or_404(image_id)
+    med = img.medicine
+    
+    # Verify ownership
+    if med.user_id != current_user.id:
+        flash("Unauthorized", "danger")
+        return redirect(url_for("home"))
+    
+    # Delete the file from disk
+    import os
+    try:
+        filepath = os.path.join(app.static_folder, img.filename)
+        if os.path.exists(filepath):
+            os.remove(filepath)
+    except Exception as e:
+        print(f"Error deleting file: {e}")
+    
+    # Delete the database record
+    db.session.delete(img)
+    db.session.commit()
+    flash("Image deleted", "success")
+    
+    # Redirect back to edit form with no-cache headers
+    if med.type == "donation":
+        response = make_response(redirect(url_for("meds.edit_donation", mid=med.id)))
+    else:
+        response = make_response(redirect(url_for("meds.edit_request", mid=med.id)))
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    return response
 
 
 # Profile page to set user contact info and coordinates

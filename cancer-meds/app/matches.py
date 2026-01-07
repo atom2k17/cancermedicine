@@ -141,6 +141,33 @@ def donor_accept(match_id):
     flash("You accepted the request. Awaiting requester confirmation.", "success")
     return redirect(url_for("meds.my_donations"))
 
+@matches_bp.route("/donor_reject/<int:match_id>", methods=["POST"])
+@login_required
+def donor_reject(match_id):
+    match = Match.query.get_or_404(match_id)
+    # only donor can reject
+    if match.donor_id != current_user.id:
+        flash("Unauthorized", "danger"); return redirect(url_for("home"))
+    if match.status != "pending":
+        flash("Can only reject pending matches", "warning"); return redirect(url_for("matches.my_matches"))
+    
+    # revert medicine statuses back to available
+    donor_med = match.donor_medicine
+    req_med = match.requester_medicine
+    donor_med.status = "available"
+    req_med.status = "available"
+    
+    # delete the match
+    db.session.delete(match)
+    db.session.commit()
+    
+    # notify requester
+    requester = User.query.get(match.requester_id)
+    send_notification(requester.email, "Request rejected", f"Donor rejected your request for {match.donor_medicine.name}.")
+    
+    flash("You rejected the request. Match has been removed.", "success")
+    return redirect(url_for("matches.my_matches"))
+
 @matches_bp.route("/requester_confirm/<int:match_id>", methods=["POST"])
 @login_required
 def requester_confirm(match_id):

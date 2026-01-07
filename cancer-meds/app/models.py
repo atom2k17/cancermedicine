@@ -48,7 +48,7 @@ class Medicine(db.Model):
 class Image(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     filename = db.Column(db.String(300), nullable=False)
-    medicine_id = db.Column(db.Integer, db.ForeignKey('medicine.id'), nullable=False)
+    medicine_id = db.Column(db.Integer, db.ForeignKey('medicine.id', ondelete='CASCADE'), nullable=False)
     uploader_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     image_type = db.Column(db.String(50), nullable=False)  # 'donation_photo' or 'prescription'
     approved = db.Column(db.Boolean, default=False)
@@ -71,5 +71,5 @@ class Match(db.Model):
     status = db.Column(db.String(20), default="pending")  # pending, donor_accepted, requester_confirmed, completed
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    donor_medicine = db.relationship("Medicine", foreign_keys=[donor_medicine_id], uselist=False, post_update=True)
-    requester_medicine = db.relationship("Medicine", foreign_keys=[requester_medicine_id], uselist=False, post_update=True)
+    donor_medicine = db.relationship("Medicine", foreign_keys=[donor_medicine_id], uselist=False)
+    requester_medicine = db.relationship("Medicine", foreign_keys=[requester_medicine_id], uselist=False)

@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="container mt-5">
+<div class="form-container">
   <h2>Register</h2>
   <form method="POST">
     {{ form.hidden_tag() }}
@@ -8,24 +8,24 @@
       {{ form.name.label }}
       {{ form.name(class="form-control") }}
     </div>
-    <div class="form-group mt-2">
+    <div class="form-group">
       {{ form.email.label }}
       {{ form.email(class="form-control") }}
     </div>
-    <div class="form-group mt-2">
+    <div class="form-group">
       {{ form.phone.label }}
       {{ form.phone(class="form-control") }}
     </div>
-    <div class="form-group mt-2">
+    <div class="form-group">
       {{ form.password.label }}
       {{ form.password(class="form-control") }}
     </div>
-    <div class="form-group mt-2">
+    <div class="form-group">
       {{ form.role.label }}
-      {{ form.role(class="form-control") }}
+      {{ form.role(class="form-control form-select") }}
     </div>
-    {{ form.submit(class="btn btn-primary mt-3") }}
+    {{ form.submit(class="btn btn-primary") }}
   </form>
-  <p class="mt-3">Already registered? <a href="{{ url_for('auth.login') }}">Login here</a>.</p>
+  <p>Already registered? <a href="{{ url_for('auth.login') }}">Login here</a>.</p>
 </div>
 {% endblock %}

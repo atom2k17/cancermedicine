@@ -14,9 +14,9 @@ from wtforms.validators import DataRequired, Email, Length
 class RegisterForm(FlaskForm):
     name = StringField("Full Name", validators=[DataRequired(), Length(min=2)])
     email = StringField("Email", validators=[DataRequired(), Email()])
-    phone = StringField("Phone")
+    phone = StringField("Phone", validators=[DataRequired(), Length(min=7)])
     password = PasswordField("Password", validators=[DataRequired(), Length(min=6)])
-    role = SelectField("Role", choices=[("donor","Donor"),("requester","Requester"),("doctor","Doctor")])
+    role = SelectField("Role", choices=[("donor","Donor"),("requester","Requester")])
     submit = SubmitField("Register")
 
 class LoginForm(FlaskForm):

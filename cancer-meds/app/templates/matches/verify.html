@@ -1,53 +1,214 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="container mt-4">
-  <h3>Verify Match #{{ match.id }}</h3>
-  <p>Donation: {{ match.donor_medicine.name }} (Donor: {{ match.donor.name }})</p>
-  <p>Request: {{ match.requester_medicine.name }} (Requester: {{ match.requester.name }})</p>
+<div class="container-fluid" style="background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); min-height: 100vh; padding: 2rem 0;">
+  <div class="container">
+    <!-- Header -->
+    <div class="mb-5">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+            <h1 style="font-size: 2.5rem; font-weight: 700; color: #2c3e50; margin: 0;">Verify Match</h1>
+            {% if not can_approve %}
+            <span style="background: linear-gradient(135deg, #27ae60 0%, #229954 100%); color: white; padding: 0.5rem 1.2rem; border-radius: 50px; font-weight: 700; font-size: 1rem;">✓ Verified</span>
+            {% endif %}
+          </div>
+          <p class="text-muted" style="font-size: 1.1rem; margin: 0;">Match ID: <strong>#{{ match.id }}</strong> • Created: {{ match.created_at.strftime('%b %d, %Y') }}</p>
+        </div>
+        <a href="{{ url_for('matches.pending_verifications') }}" class="btn" style="background: white; border: 2px solid #e0e0e0; color: #2c3e50; padding: 0.75rem 1.5rem; border-radius: 50px; font-weight: 600; transition: all 0.3s;">← Back to List</a>
+      </div>
+    </div>
 
-  <h5>Donation Images</h5>
-  <div class="row">
-    {% for img in match.donor_medicine.images %}
-      <div class="col-md-3 mb-3">
-        <div class="card">
-          <img src="{{ url_for('static', filename=img.filename) }}" class="card-img-top" alt="donation image">
-          <div class="card-body">
-            <p class="card-text">Approved: {{ 'Yes' if img.approved else 'No' }}</p>
+    <!-- Match Comparison Section -->
+    <div class="row g-4 mb-5">
+      <!-- Donation Card -->
+      <div class="col-lg-6">
+        <div style="background: white; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); overflow: hidden; transition: transform 0.3s, box-shadow 0.3s;">
+          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 2rem; color: white;">
+            <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+              <div style="font-size: 2.5rem;">💊</div>
+              <h3 style="margin: 0; font-weight: 700;">Donation</h3>
+            </div>
+            <p style="margin: 0; opacity: 0.9;">Available medicines from donor</p>
+          </div>
+          <div style="padding: 2rem;">
+            <!-- Medicine Details -->
+            <div style="margin-bottom: 1.5rem;">
+              <p style="color: #7f8c8d; font-size: 0.9rem; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.5px;">Medicine Name</p>
+              <h4 style="margin: 0; font-size: 1.5rem; color: #2c3e50; font-weight: 700;">{{ match.donor_medicine.name }}</h4>
+            </div>
+
+            <!-- Details Grid -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2rem; padding-bottom: 2rem; border-bottom: 2px solid #ecf0f1;">
+              <div>
+                <p style="color: #7f8c8d; font-size: 0.9rem; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.5px;">Quantity</p>
+                <p style="margin: 0; font-size: 1.3rem; color: #2c3e50; font-weight: 600;">{{ match.donor_medicine.quantity }}</p>
+              </div>
+              <div>
+                <p style="color: #7f8c8d; font-size: 0.9rem; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.5px;">Expiry Date</p>
+                <p style="margin: 0; font-size: 1.3rem; color: #2c3e50; font-weight: 600;">{{ match.donor_medicine.expiry_date.strftime('%b %d, %Y') if match.donor_medicine.expiry_date else 'N/A' }}</p>
+              </div>
+              <div style="grid-column: 1 / -1;">
+                <p style="color: #7f8c8d; font-size: 0.9rem; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.5px;">Location</p>
+                <p style="margin: 0; font-size: 1.1rem; color: #2c3e50;">📍 {{ match.donor_medicine.location or 'Not specified' }}</p>
+              </div>
+            </div>
+
+            <!-- Donor Info -->
+            <div>
+              <p style="color: #7f8c8d; font-size: 0.9rem; margin-bottom: 1rem; text-transform: uppercase; letter-spacing: 0.5px;">Donor Information</p>
+              <div style="background: #f8f9fa; padding: 1.5rem; border-radius: 8px;">
+                <p style="margin: 0 0 0.5rem 0; font-size: 1.2rem; color: #2c3e50; font-weight: 600;">{{ match.donor.name }}</p>
+                <p style="margin: 0.5rem 0; color: #555;"><a href="mailto:{{ match.donor.email }}" style="color: #667eea; text-decoration: none;">📧 {{ match.donor.email }}</a></p>
+                <p style="margin: 0.5rem 0; color: #555;">📱 {{ match.donor.phone or 'Not provided' }}</p>
+              </div>
+            </div>
           </div>
         </div>
       </div>
-    {% else %}
-      <p>No donation images uploaded.</p>
-    {% endfor %}
-  </div>
 
-  <h5>Prescription / Requester Images</h5>
-  <div class="row">
-    {% for img in match.requester_medicine.images %}
-      <div class="col-md-3 mb-3">
-        <div class="card">
+      <!-- Request Card -->
+      <div class="col-lg-6">
+        <div style="background: white; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); overflow: hidden; transition: transform 0.3s, box-shadow 0.3s;">
+          <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); padding: 2rem; color: white;">
+            <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+              <div style="font-size: 2.5rem;">📋</div>
+              <h3 style="margin: 0; font-weight: 700;">Request</h3>
+            </div>
+            <p style="margin: 0; opacity: 0.9;">Required medicines from requester</p>
+          </div>
+          <div style="padding: 2rem;">
+            <!-- Medicine Details -->
+            <div style="margin-bottom: 1.5rem;">
+              <p style="color: #7f8c8d; font-size: 0.9rem; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.5px;">Medicine Name</p>
+              <h4 style="margin: 0; font-size: 1.5rem; color: #2c3e50; font-weight: 700;">{{ match.requester_medicine.name }}</h4>
+            </div>
+
+            <!-- Details Grid -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2rem; padding-bottom: 2rem; border-bottom: 2px solid #ecf0f1;">
+              <div>
+                <p style="color: #7f8c8d; font-size: 0.9rem; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.5px;">Quantity</p>
+                <p style="margin: 0; font-size: 1.3rem; color: #2c3e50; font-weight: 600;">{{ match.requester_medicine.quantity }}</p>
+              </div>
+              <div>
+                <p style="color: #7f8c8d; font-size: 0.9rem; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.5px;">Expiry Date</p>
+                <p style="margin: 0; font-size: 1.3rem; color: #2c3e50; font-weight: 600;">{{ match.requester_medicine.expiry_date.strftime('%b %d, %Y') if match.requester_medicine.expiry_date else 'N/A' }}</p>
+              </div>
+              <div style="grid-column: 1 / -1;">
+                <p style="color: #7f8c8d; font-size: 0.9rem; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.5px;">Location</p>
+                <p style="margin: 0; font-size: 1.1rem; color: #2c3e50;">📍 {{ match.requester_medicine.location or 'Not specified' }}</p>
+              </div>
+            </div>
+
+            <!-- Requester Info -->
+            <div>
+              <p style="color: #7f8c8d; font-size: 0.9rem; margin-bottom: 1rem; text-transform: uppercase; letter-spacing: 0.5px;">Requester Information</p>
+              <div style="background: #f8f9fa; padding: 1.5rem; border-radius: 8px;">
+                <p style="margin: 0 0 0.5rem 0; font-size: 1.2rem; color: #2c3e50; font-weight: 600;">{{ match.requester.name }}</p>
+                <p style="margin: 0.5rem 0; color: #555;"><a href="mailto:{{ match.requester.email }}" style="color: #f5576c; text-decoration: none;">📧 {{ match.requester.email }}</a></p>
+                <p style="margin: 0.5rem 0; color: #555;">📱 {{ match.requester.phone or 'Not provided' }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Images Sections -->
+    <!-- Donation Images -->
+    <div class="mb-5">
+      <h3 style="font-size: 1.5rem; font-weight: 700; color: #2c3e50; margin-bottom: 2rem; padding-left: 1rem; border-left: 4px solid #667eea;">📸 Donation Images</h3>
+      {% if match.donor_medicine.images %}
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; max-width: {% if match.donor_medicine.images|length < 3 %}{{ match.donor_medicine.images|length * 320 }}px{% else %}900px{% endif %};"
+        {% for img in match.donor_medicine.images %}
+        <div style="background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.1); transition: transform 0.3s, box-shadow 0.3s;">
+          <div style="position: relative; overflow: hidden; height: 280px;">
+            <img src="{{ url_for('static', filename=img.filename) }}" alt="donation image" style="width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s;">
+            <div style="position: absolute; top: 1rem; right: 1rem;">
+              {% if img.approved %}
+              <span style="background: #27ae60; color: white; padding: 0.5rem 1rem; border-radius: 50px; font-weight: 600; display: inline-block;">✓ Approved</span>
+              {% else %}
+              <span style="background: #f39c12; color: white; padding: 0.5rem 1rem; border-radius: 50px; font-weight: 600; display: inline-block;">⏳ Pending</span>
+              {% endif %}
+            </div>
+          </div>
+          <div style="padding: 1.5rem;">
+            {% if img.approved_at %}
+              <p style="margin: 0; color: #7f8c8d; font-size: 0.95rem;">Approved on {{ img.approved_at.strftime('%b %d, %Y at %H:%M') }}</p>
+            {% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div style="background: white; border-radius: 12px; padding: 3rem; text-align: center; box-shadow: 0 5px 15px rgba(0,0,0,0.08);">
+        <p style="color: #7f8c8d; font-size: 1.1rem; margin: 0;">No donation images uploaded yet.</p>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Prescription Images -->
+    <div class="mb-5">
+      <h3 style="font-size: 1.5rem; font-weight: 700; color: #2c3e50; margin-bottom: 2rem; padding-left: 1rem; border-left: 4px solid #f5576c;">📄 Prescription / Request Images</h3>
+      {% if match.requester_medicine.images %}
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; max-width: {% if match.requester_medicine.images|length < 3 %}{{ match.requester_medicine.images|length * 320 }}px{% else %}900px{% endif %};"
+        {% for img in match.requester_medicine.images %}
+        <div style="background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.1); transition: transform 0.3s, box-shadow 0.3s;">
           {% if img.filename.lower().endswith('.pdf') %}
-            <div class="card-body"><a href="{{ url_for('static', filename=img.filename) }}" target="_blank">View PDF</a></div>
+            <div style="position: relative; background: linear-gradient(135deg, #e0e0e0 0%, #f5f5f5 100%); height: 280px; display: flex; align-items: center; justify-content: center;">
+              <div style="text-align: center;">
+                <p style="font-size: 4rem; margin: 0 0 1rem 0;">📑</p>
+                <p style="color: #555; font-weight: 600; margin: 0;">PDF Document</p>
+              </div>
+              <div style="position: absolute; top: 1rem; right: 1rem;">
+                {% if img.approved %}
+                <span style="background: #27ae60; color: white; padding: 0.5rem 1rem; border-radius: 50px; font-weight: 600; display: inline-block;">✓ Approved</span>
+                {% else %}
+                <span style="background: #f39c12; color: white; padding: 0.5rem 1rem; border-radius: 50px; font-weight: 600; display: inline-block;">⏳ Pending</span>
+                {% endif %}
+              </div>
+            </div>
           {% else %}
-            <img src="{{ url_for('static', filename=img.filename) }}" class="card-img-top" alt="prescription image">
+            <div style="position: relative; overflow: hidden; height: 280px;">
+              <img src="{{ url_for('static', filename=img.filename) }}" alt="prescription image" style="width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s;">
+              <div style="position: absolute; top: 1rem; right: 1rem;">
+                {% if img.approved %}
+                <span style="background: #27ae60; color: white; padding: 0.5rem 1rem; border-radius: 50px; font-weight: 600; display: inline-block;">✓ Approved</span>
+                {% else %}
+                <span style="background: #f39c12; color: white; padding: 0.5rem 1rem; border-radius: 50px; font-weight: 600; display: inline-block;">⏳ Pending</span>
+                {% endif %}
+              </div>
+            </div>
           {% endif %}
-          <div class="card-body">
-            <p class="card-text">Approved: {{ 'Yes' if img.approved else 'No' }}</p>
+          <div style="padding: 1.5rem;">
+            {% if img.approved_at %}
+              <p style="margin: 0 0 1rem 0; color: #7f8c8d; font-size: 0.95rem;">Approved on {{ img.approved_at.strftime('%b %d, %Y at %H:%M') }}</p>
+            {% endif %}
+            {% if img.filename.lower().endswith('.pdf') %}
+              <a href="{{ url_for('static', filename=img.filename) }}" target="_blank" class="btn btn-sm" style="background: #3498db; color: white; border: none; padding: 0.5rem 1rem; border-radius: 6px; text-decoration: none; font-weight: 600;">View PDF</a>
+            {% endif %}
           </div>
         </div>
+        {% endfor %}
       </div>
-    {% else %}
-      <p>No prescription uploaded.</p>
-    {% endfor %}
-  </div>
+      {% else %}
+      <div style="background: white; border-radius: 12px; padding: 3rem; text-align: center; box-shadow: 0 5px 15px rgba(0,0,0,0.08);">
+        <p style="color: #7f8c8d; font-size: 1.1rem; margin: 0;">No prescription uploaded yet.</p>
+      </div>
+      {% endif %}
+    </div>
 
-  {% if can_approve %}
-  <form method="post">
-    <button class="btn btn-success" type="submit">Approve and Complete Match</button>
-    <a href="{{ url_for('matches.pending_verifications') }}" class="btn btn-secondary">Back</a>
-  </form>
-  {% else %}
-    <a href="{{ url_for('matches.pending_verifications') }}" class="btn btn-secondary">Back</a>
-  {% endif %}
+    <!-- Action Section -->
+    {% if can_approve %}
+    <div style="background: white; border-radius: 12px; padding: 3rem; box-shadow: 0 10px 30px rgba(0,0,0,0.1); margin-bottom: 3rem; border-left: 4px solid #27ae60;">
+      <h4 style="font-size: 1.3rem; font-weight: 700; color: #2c3e50; margin-bottom: 1.5rem;">Ready to Verify This Match?</h4>
+      <p style="color: #7f8c8d; margin-bottom: 2rem;">Review all details above and confirm to approve and complete this match.</p>
+      <form method="post">
+        <button type="submit" class="btn" style="background: linear-gradient(135deg, #27ae60 0%, #229954 100%); color: white; border: none; padding: 1rem 2.5rem; border-radius: 50px; font-weight: 700; font-size: 1.1rem; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; box-shadow: 0 5px 15px rgba(39, 174, 96, 0.3);">
+          ✓ Approve and Complete Match
+        </button>
+      </form>
+    </div>
+    {% endif %}
+  </div>
 </div>
 {% endblock %}

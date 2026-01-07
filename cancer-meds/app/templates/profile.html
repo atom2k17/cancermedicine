@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="container mt-4">
+<div class="form-container">
   <h3>My Profile</h3>
   <form method="POST">
     {{ form.hidden_tag() }}
@@ -15,15 +15,17 @@
 
     <div class="mb-3">
       <label>Location (used for map & distance)</label>
-      <div id="profile-map" style="height:320px; width:100%;"></div>
+      <div id="profile-map" style="height:300px; width:100%; border-radius: 8px; overflow: hidden; border: 1px solid #ddd;"></div>
       <small class="form-text text-muted">Click the map to set your location. You can also drag the marker.</small>
     </div>
 
     {{ form.latitude }}
     {{ form.longitude }}
 
-    {{ form.submit(class='btn btn-primary') }}
-    <a href="{{ url_for('home') }}" class="btn btn-secondary">Cancel</a>
+    <div style="display: flex; gap: 0.8rem;">
+      {{ form.submit(class='btn btn-primary') }}
+      <a href="{{ url_for('home') }}" class="btn btn-outline-secondary" style="width: auto; flex: 1; font-weight: 600; color: #555; border-color: #999;">Cancel</a>
+    </div>
   </form>
 </div>
 
