@@ -1,6 +1,7 @@
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
+from flask_login import current_user
 from flask_mail import Mail
 from .config import Config
 import os
@@ -30,6 +31,18 @@ def create_app():
     app.register_blueprint(auth_bp)
     app.register_blueprint(meds_bp)
     app.register_blueprint(matches_bp)
+
+    # provide pending verification count to templates for doctor users
+    @app.context_processor
+    def inject_pending_count():
+        try:
+            if getattr(current_user, 'is_authenticated', False) and getattr(current_user, 'role', None) == 'doctor':
+                from .models import Match
+                cnt = Match.query.filter_by(status='awaiting_verification').count()
+                return dict(pending_verifications_count=cnt)
+        except Exception:
+            pass
+        return dict(pending_verifications_count=0)
 
     # simple homepage route
     @app.route("/")

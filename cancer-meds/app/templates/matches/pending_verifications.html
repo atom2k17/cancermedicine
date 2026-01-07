@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <h3>Pending Verifications</h3>
+  {% if pending %}
+  <table class="table">
+    <thead><tr><th>ID</th><th>Donation</th><th>Request</th><th>Requested At</th><th>Actions</th></tr></thead>
+    <tbody>
+      {% for m in pending %}
+      <tr>
+        <td>{{ m.id }}</td>
+        <td>{{ m.donor_medicine.name }} (Donor: {{ m.donor.name }})</td>
+        <td>{{ m.requester_medicine.name }} (Requester: {{ m.requester.name }})</td>
+        <td>{{ m.created_at }}</td>
+        <td><a class="btn btn-sm btn-primary" href="{{ url_for('matches.verify', match_id=m.id) }}">Review</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+    <p>No matches awaiting verification.</p>
+  {% endif %}
+
+  <h3 class="mt-5">Matches You Approved</h3>
+  {% if approved %}
+  <table class="table">
+    <thead><tr><th>ID</th><th>Donation</th><th>Request</th><th>Verified At</th><th>Actions</th></tr></thead>
+    <tbody>
+      {% for m in approved %}
+      <tr>
+        <td>{{ m.id }}</td>
+        <td>{{ m.donor_medicine.name }} (Donor: {{ m.donor.name }})</td>
+        <td>{{ m.requester_medicine.name }} (Requester: {{ m.requester.name }})</td>
+        <td>
+          {# show earliest approved_at from images for this match by this doctor, else match.created_at #}
+          {% set ts = None %}
+          {% for img in m.donor_medicine.images + m.requester_medicine.images %}
+            {% if img.approved and img.approved_by == current_user.id %}
+              {% if not ts or img.approved_at > ts %}
+                {% set ts = img.approved_at %}
+              {% endif %}
+            {% endif %}
+          {% endfor %}
+          {{ ts if ts else m.created_at }}
+        </td>
+        <td><a class="btn btn-sm btn-outline-primary" href="{{ url_for('matches.verify', match_id=m.id) }}">View</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+    <p>You haven't approved any matches yet.</p>
+  {% endif %}
+</div>
+{% endblock %}

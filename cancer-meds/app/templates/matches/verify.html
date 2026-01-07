@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <h3>Verify Match #{{ match.id }}</h3>
+  <p>Donation: {{ match.donor_medicine.name }} (Donor: {{ match.donor.name }})</p>
+  <p>Request: {{ match.requester_medicine.name }} (Requester: {{ match.requester.name }})</p>
+
+  <h5>Donation Images</h5>
+  <div class="row">
+    {% for img in match.donor_medicine.images %}
+      <div class="col-md-3 mb-3">
+        <div class="card">
+          <img src="{{ url_for('static', filename=img.filename) }}" class="card-img-top" alt="donation image">
+          <div class="card-body">
+            <p class="card-text">Approved: {{ 'Yes' if img.approved else 'No' }}</p>
+          </div>
+        </div>
+      </div>
+    {% else %}
+      <p>No donation images uploaded.</p>
+    {% endfor %}
+  </div>
+
+  <h5>Prescription / Requester Images</h5>
+  <div class="row">
+    {% for img in match.requester_medicine.images %}
+      <div class="col-md-3 mb-3">
+        <div class="card">
+          {% if img.filename.lower().endswith('.pdf') %}
+            <div class="card-body"><a href="{{ url_for('static', filename=img.filename) }}" target="_blank">View PDF</a></div>
+          {% else %}
+            <img src="{{ url_for('static', filename=img.filename) }}" class="card-img-top" alt="prescription image">
+          {% endif %}
+          <div class="card-body">
+            <p class="card-text">Approved: {{ 'Yes' if img.approved else 'No' }}</p>
+          </div>
+        </div>
+      </div>
+    {% else %}
+      <p>No prescription uploaded.</p>
+    {% endfor %}
+  </div>
+
+  {% if can_approve %}
+  <form method="post">
+    <button class="btn btn-success" type="submit">Approve and Complete Match</button>
+    <a href="{{ url_for('matches.pending_verifications') }}" class="btn btn-secondary">Back</a>
+  </form>
+  {% else %}
+    <a href="{{ url_for('matches.pending_verifications') }}" class="btn btn-secondary">Back</a>
+  {% endif %}
+</div>
+{% endblock %}

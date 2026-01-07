@@ -11,6 +11,9 @@ class User(db.Model, UserMixin):
     password_hash = db.Column(db.String(200), nullable=False)
     role = db.Column(db.String(20), default="requester")  # donor or requester
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    # optional precise user coordinates (for showing nearby matches)
+    latitude = db.Column(db.Float, nullable=True)
+    longitude = db.Column(db.Float, nullable=True)
 
     medicines = db.relationship("Medicine", backref="owner", lazy=True)
     sent_matches = db.relationship("Match", foreign_keys="Match.donor_id", backref="donor", lazy=True)
@@ -37,6 +40,27 @@ class Medicine(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     # optional proof file path (extend for uploads)
     proof = db.Column(db.String(300), nullable=True)
+    # free-form location (address or GPS string)
+    location = db.Column(db.String(300), nullable=True)
+
+
+
+class Image(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    filename = db.Column(db.String(300), nullable=False)
+    medicine_id = db.Column(db.Integer, db.ForeignKey('medicine.id'), nullable=False)
+    uploader_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    image_type = db.Column(db.String(50), nullable=False)  # 'donation_photo' or 'prescription'
+    approved = db.Column(db.Boolean, default=False)
+    approved_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    approved_at = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # relationships
+    uploader = db.relationship('User', foreign_keys=[uploader_id], backref='uploaded_images')
+
+# add reverse relationship on Medicine
+Medicine.images = db.relationship('Image', backref='medicine', lazy=True)
 
 class Match(db.Model):
     id = db.Column(db.Integer, primary_key=True)

@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <h3>My Profile</h3>
+  <form method="POST">
+    {{ form.hidden_tag() }}
+    <div class="mb-3">
+      {{ form.name.label }}
+      {{ form.name(class='form-control') }}
+    </div>
+    <div class="mb-3">
+      {{ form.phone.label }}
+      {{ form.phone(class='form-control') }}
+    </div>
+
+    <div class="mb-3">
+      <label>Location (used for map & distance)</label>
+      <div id="profile-map" style="height:320px; width:100%;"></div>
+      <small class="form-text text-muted">Click the map to set your location. You can also drag the marker.</small>
+    </div>
+
+    {{ form.latitude }}
+    {{ form.longitude }}
+
+    {{ form.submit(class='btn btn-primary') }}
+    <a href="{{ url_for('home') }}" class="btn btn-secondary">Cancel</a>
+  </form>
+</div>
+
+<script>
+// Wait until Leaflet (L) is available — avoids running before base scripts load
+(function waitForLeaflet(){
+  if (typeof L === 'undefined') { setTimeout(waitForLeaflet, 50); return; }
+  var mapEl = document.getElementById('profile-map');
+  if (!mapEl) return;
+  var latInput = document.getElementsByName('latitude')[0];
+  var lonInput = document.getElementsByName('longitude')[0];
+  var startLat = latInput && latInput.value ? parseFloat(latInput.value) : null;
+  var startLon = lonInput && lonInput.value ? parseFloat(lonInput.value) : null;
+  var map = L.map('profile-map').setView(startLat && startLon ? [startLat, startLon] : [20,0], startLat && startLon ? 12 : 2);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:18, attribution:'&copy; OpenStreetMap contributors'}).addTo(map);
+  var marker = null;
+  if (startLat && startLon) {
+    marker = L.marker([startLat, startLon], {draggable:true}).addTo(map);
+    marker.on('dragend', function(e){
+      var ll = e.target.getLatLng();
+      latInput.value = ll.lat.toFixed(6);
+      lonInput.value = ll.lng.toFixed(6);
+    });
+  }
+  map.on('click', function(e){
+    if (marker) { marker.setLatLng(e.latlng); }
+    else { marker = L.marker(e.latlng, {draggable:true}).addTo(map);
+      marker.on('dragend', function(e){ var ll = e.target.getLatLng(); latInput.value = ll.lat.toFixed(6); lonInput.value = ll.lng.toFixed(6); });
+    }
+    latInput.value = e.latlng.lat.toFixed(6);
+    lonInput.value = e.latlng.lng.toFixed(6);
+  });
+})();
+</script>
+{% endblock %}

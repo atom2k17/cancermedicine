@@ -4,18 +4,74 @@
   <h1>Welcome to LifeDonor</h1>
   <p>Connecting Lives, Sharing Hope. Donate or request life-saving medications today.</p>
 
-  <div class="mt-4">
-    <a href="{{ url_for('auth.register', role='donor') }}" class="btn btn-primary btn-lg me-3">
-      I want to Donate
-    </a>
-    <a href="{{ url_for('auth.register', role='requester') }}" class="btn btn-success btn-lg">
-      I need Medicines
-    </a>
-  </div>
+  {% if not current_user.is_authenticated %}
+    <div class="mt-4">
+      <a href="{{ url_for('auth.register', role='donor') }}" class="btn btn-primary btn-lg me-3">I want to Donate</a>
+      <a href="{{ url_for('auth.register', role='requester') }}" class="btn btn-success btn-lg">I need Medicines</a>
+    </div>
 
-  <div class="mt-4">
-    <p>Already have an account?</p>
-    <a href="{{ url_for('auth.login') }}" class="btn btn-outline-secondary">Login</a>
-  </div>
+    <div class="mt-4">
+      <p>Already have an account?</p>
+      <a href="{{ url_for('auth.login') }}" class="btn btn-outline-secondary">Login</a>
+    </div>
+
+    <!-- Process flow graphic: simplified and responsive -->
+    <div class="process-flow container mt-5">
+      <div class="d-none d-md-flex justify-content-center align-items-center">
+        <div class="flow-step text-center mx-2">
+          <div class="icon">🙌</div>
+          <h6 class="mt-2">Donor</h6>
+          <div class="small text-muted">Upload medicine image & details</div>
+        </div>
+        <div class="flow-arrow mx-2">➡️</div>
+        <div class="flow-step text-center mx-2">
+          <div class="icon">📝</div>
+          <h6 class="mt-2">Requester</h6>
+          <div class="small text-muted">Upload prescription</div>
+        </div>
+        <div class="flow-arrow mx-2">➡️</div>
+        <div class="flow-step text-center mx-2">
+          <div class="icon">👩‍⚕️</div>
+          <h6 class="mt-2">Doctor Review</h6>
+          <div class="small text-muted">Verified review & approval</div>
+        </div>
+        <div class="flow-arrow mx-2">➡️</div>
+        <div class="flow-step text-center mx-2">
+          <div class="icon">🤝</div>
+          <h6 class="mt-2">Match</h6>
+          <div class="small text-muted">Donor & requester connect</div>
+        </div>
+      </div>
+
+      <!-- Mobile / stacked flow -->
+      <div class="d-md-none">
+        <div class="row">
+          <div class="col-12 p-2"><div class="flow-step text-center"><div class="icon">🙌</div><h6 class="mt-2">Donor</h6><div class="small text-muted">Upload medicine image & details</div></div></div>
+          <div class="col-12 p-2"><div class="flow-step text-center"><div class="icon">📝</div><h6 class="mt-2">Requester</h6><div class="small text-muted">Upload prescription</div></div></div>
+          <div class="col-12 p-2"><div class="flow-step text-center"><div class="icon">👩‍⚕️</div><h6 class="mt-2">Doctor Review</h6><div class="small text-muted">Verified review & approval</div></div></div>
+          <div class="col-12 p-2"><div class="flow-step text-center"><div class="icon">🤝</div><h6 class="mt-2">Match</h6><div class="small text-muted">Donor & requester connect</div></div></div>
+        </div>
+      </div>
+
+      <div class="mt-4 text-center">
+        <a href="{{ url_for('auth.register', role='donor') }}" class="btn btn-outline-primary me-2">Register as Donor</a>
+        <a href="{{ url_for('auth.register', role='requester') }}" class="btn btn-outline-success">Register as Requester</a>
+      </div>
+    </div>
+  {% else %}
+    <div class="mt-4">
+      {% if current_user.role == 'donor' %}
+        <a href="{{ url_for('meds.add_donation') }}" class="btn btn-primary btn-lg me-3">Add Donation</a>
+        <a href="{{ url_for('meds.my_donations') }}" class="btn btn-secondary btn-lg">My Donations</a>
+      {% elif current_user.role == 'requester' %}
+        <a href="{{ url_for('meds.add_medicine') }}" class="btn btn-success btn-lg me-3">Add Request</a>
+        <a href="{{ url_for('meds.my_requests') }}" class="btn btn-secondary btn-lg">My Requests</a>
+      {% elif current_user.role == 'doctor' %}
+        <a href="{{ url_for('matches.pending_verifications') }}" class="btn btn-primary btn-lg">Pending Verifications</a>
+      {% else %}
+        <a href="{{ url_for('matches.find_matches') }}" class="btn btn-primary btn-lg">Find Donations</a>
+      {% endif %}
+    </div>
+  {% endif %}
 </div>
 {% endblock %}

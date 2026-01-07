@@ -2,7 +2,7 @@
 {% block content %}
 <div class="container mt-4">
 	<h3>Add Donation</h3>
-	<form method="POST">
+	<form method="POST" enctype="multipart/form-data">
 		{{ form.hidden_tag() }}
 		<div class="mb-3">
 			{{ form.name.label }}
@@ -16,8 +16,21 @@
 			{{ form.expiry_date.label }}
 			{{ form.expiry_date(class="form-control", placeholder="YYYY-MM-DD") }}
 		</div>
+			<div class="mb-3">
+				<label for="location">Location (optional)</label>
+				<input type="text" name="location" id="location" class="form-control" placeholder="City, address or coordinates">
+			</div>
+
+			<div class="mb-3">
+				<small class="form-text text-muted">Note: we use your account location to show matches on the map. You can edit your profile location later.</small>
+			</div>
+			<div class="mb-3">
+				<label for="images">Upload photos (optional)</label>
+				<input type="file" name="images" id="images" class="form-control" accept="image/*" multiple>
+			</div>
 		{{ form.submit(class="btn btn-primary") }}
 		<a href="{{ url_for('meds.my_donations') }}" class="btn btn-secondary">Cancel</a>
 	</form>
 </div>
+<!-- No per-medicine map picker: user location is used for map display -->
 {% endblock %}
